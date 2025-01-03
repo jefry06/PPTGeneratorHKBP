@@ -82,19 +82,20 @@ def add_paragraphs_to_slide(prs, paragraphs, font_size_map):
         else:
             p.font.size = Pt(font_size_map[0])
 
-def singing(prs, docx_path, occurrence, delimiter):
+def singing(prs, docx_path, occurrence, delimiter, language):
     doc = Document(docx_path)
-    paragraphs = process_paragraphs(doc, "marende", occurrence, delimiter)
+    start_keyword = "marende" if language == 1 else "bernyanyi"
+    paragraphs = process_paragraphs(doc, start_keyword, occurrence, delimiter)
     font_size_map = {250: 36, 200: 40, 0: 48}
     add_paragraphs_to_slide(prs, paragraphs, font_size_map)
 
-def patik(prs, docx_path):
+def patik(prs, docx_path, language):
     doc = Document(docx_path)
     collecting = False
     paragraphs = []
     paragraphs_between = []
     paragraph_count = 0
-    delimiter = "marende"
+    delimiter = "marende" if language == 1 else "bernyanyi"
 
     for paragraph in doc.paragraphs:
         paragraph_count += 1
@@ -165,12 +166,14 @@ def session(prs, docx_path, param):
     font_size_map = {250: 36, 200: 40, 0: 48}
     add_paragraphs_to_slide(prs, cleaned_texts, font_size_map)
 
-def epistel(prs, docx_path):
+def epistel(prs, docx_path, language):
     doc = Document(docx_path)
     paragraphs = []  # List to store the final grouped paragraphs
     current_paragraph = []  # Temporarily stores lines for a single speaker
     found_epistel = False
     found_marende = False
+
+    marende = "marende" if language == 1 else "bernyanyi"
 
     # Process each paragraph in the document
     for para in doc.paragraphs:
@@ -182,13 +185,13 @@ def epistel(prs, docx_path):
             found_epistel = True
             continue
 
-        if found_epistel and "marende".lower() in text.lower():
+        if found_epistel and marende.lower() in text.lower():
             found_marende = True
             continue
 
         if found_epistel and not found_marende:
             # Check if the line starts with "U:" or "H:"
-            if text.startswith("U	:") or text.startswith("H	:") or text.startswith("H :") or text.startswith("U :"):
+            if text.startswith("U	:") or text.startswith("H	:") or text.startswith("H :") or text.startswith("U :") or text.startswith("P	:") or text.startswith("J	:")or text.startswith("P :") or text.startswith("J :"):
                 # Save the current paragraph if it exists
                 if current_paragraph:
                     paragraphs.append("\n".join(current_paragraph))
@@ -209,7 +212,7 @@ def epistel(prs, docx_path):
     add_paragraphs_to_slide(prs, paragraphs, font_size_map)
 
 
-def convert_with_cover(docx_path, pptx_path, config):
+def convert_with_cover(docx_path, pptx_path, config, language):
     prs = Presentation()
 
     # Generate cover slide
@@ -218,12 +221,17 @@ def convert_with_cover(docx_path, pptx_path, config):
     # Loop through the configuration and perform the steps dynamically
     for step in config['steps']:
         if step['action'] == 'singing':
-            singing(prs, docx_path, step['number'], step['label'])
+            singing(prs, docx_path, step['number'], step['label'], language)
         elif step['action'] == 'session':
             session(prs, docx_path, step['label'])
         elif step['action'] == 'epistel':
-            epistel(prs, docx_path)
+            epistel(prs, docx_path, language)
         elif step['action'] == 'patik':
-            patik(prs, docx_path)
+            patik(prs, docx_path, language)
 
-    prs.save(pptx_path)
+    try:
+        prs.save(pptx_path)
+    except PermissionError:
+        raise Exception(f"Cannot save to {pptx_path}. File may be open or you don't have write permissions.")
+    except OSError as e:
+        raise Exception(f"Error saving presentation to {pptx_path}: {str(e)}")
