@@ -1,5 +1,6 @@
 from imghdr import tests
 
+from pathlib import Path
 from docx import Document
 from pptx import Presentation
 from pptx.util import Inches, Pt
@@ -12,6 +13,11 @@ def add_slide(prs):
         if shape.is_placeholder:
             sp = shape.element
             sp.getparent().remove(sp)
+
+    current_dir = Path(__file__).parent
+    image_header = current_dir.parent / "resources" / "header.png"
+    slide.shapes.add_picture(str(image_header), Inches(0.2), Inches(0.2))
+
     text_box = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(8), Inches(5))
     text_frame = text_box.text_frame
     text_frame.word_wrap = True
@@ -84,7 +90,8 @@ def add_paragraphs_to_slide(prs, paragraphs, font_size_map):
 
 def singing(prs, docx_path, occurrence, delimiter, language):
     doc = Document(docx_path)
-    start_keyword = "marende" if language == 1 else "bernyanyi"
+
+    start_keyword = "marende" if language == "1" else "bernyanyi"
     paragraphs = process_paragraphs(doc, start_keyword, occurrence, delimiter)
     font_size_map = {250: 36, 200: 40, 0: 48}
     add_paragraphs_to_slide(prs, paragraphs, font_size_map)
@@ -95,7 +102,7 @@ def patik(prs, docx_path, language):
     paragraphs = []
     paragraphs_between = []
     paragraph_count = 0
-    delimiter = "marende" if language == 1 else "bernyanyi"
+    delimiter = "marende" if language == "1" else "bernyanyi"
 
     for paragraph in doc.paragraphs:
         paragraph_count += 1
@@ -173,7 +180,7 @@ def epistel(prs, docx_path, language):
     found_epistel = False
     found_marende = False
 
-    marende = "marende" if language == 1 else "bernyanyi"
+    marende = "marende" if language == "1" else "bernyanyi"
 
     # Process each paragraph in the document
     for para in doc.paragraphs:

@@ -1,6 +1,27 @@
 from converter.GeneratePPT import convert_with_cover
 
+def print_description():
+    print("""
++-----------------------------------------------------------+
+|           Tentang Converter PPT HKBP Depok II             |
++-----------------------------------------------------------+
+| Alat ini membantu membuat slide PowerPoint dari Buku      |
+| Acara Ibadah yang diberikan Sekretariat Gereja.           |
+|                                                           |
+| Namun, hasilnya perlu dicek ulang, terutama pada:         |
+| 1. Koor       - Check urutan Koor.                        |
+| 2. Tingting   - Tingting belum ada pada PPT ini.          |
+| 3. Ayat Khotbah - Ayat belum tersedia pada PPT ini.       |
+|                                                           |
+| Gunakan alat ini untuk menghemat waktu, tapi pastikan     |
+| pengecekan manual tetap dilakukan.                        |
++-----------------------------------------------------------+
+    """)
+
+
+
 def main():
+    print_description()
     docx_path = input("Masukkan nama file dan pathnya dalam format DOCX: ")
     if not docx_path.lower().endswith('.docx'):
         print("Error: File harus dalam format DOCX!")
