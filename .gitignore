@@ -1,0 +1,9 @@
+build
+.idea
+dist
+.vscode
+src/main/resources/
+BukuAcara.iml
+venv
+PPTGeneratorHKBPDepok2.spec
+main.spec
