@@ -1,3 +1,5 @@
+from imghdr import tests
+
 from docx import Document
 from pptx import Presentation
 from pptx.util import Inches, Pt
@@ -16,20 +18,36 @@ def add_slide(prs):
     text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
     return text_frame
 
-def process_paragraphs(doc, start_keyword, stop_keyword=None):
+def process_paragraphs(doc, start_keyword, occurrence, stop_keyword=None):
     collecting = False
     current_paragraph = []
     paragraphs_between = []
+    counter = 0
 
     for paragraph in doc.paragraphs:
         text = paragraph.text.strip()
+
         if not text:
             continue
 
         if start_keyword.lower() in text.lower():
-            collecting = True
-            current_paragraph.append(text)
-            continue
+            counter+=1
+            if counter == occurrence:
+                collecting = True
+                text = paragraph.text[paragraph.text.lower().find(start_keyword):]
+                parts = text.split("“")
+                if len(parts) > 1:
+                    before_quote = parts[0].strip()  # Text before the quote
+                    quoted_text, after_quote = parts[1].split("”")  # Quoted text and remaining part
+
+                # Clean up the remaining part
+                after_quote = after_quote.strip()
+
+                # Combine the parts with newline characters
+                result = f"{before_quote}\n“{quoted_text}”\n{after_quote}"
+
+                current_paragraph.append(result)
+                continue
 
         if collecting:
             if stop_keyword and stop_keyword.lower() in text.lower():
@@ -44,7 +62,7 @@ def process_paragraphs(doc, start_keyword, stop_keyword=None):
             else:
                 current_paragraph.append(text)
 
-    if current_paragraph:
+    if collecting and current_paragraph:
         paragraphs_between.append("\n".join(current_paragraph))
 
     return paragraphs_between
@@ -64,15 +82,41 @@ def add_paragraphs_to_slide(prs, paragraphs, font_size_map):
         else:
             p.font.size = Pt(font_size_map[0])
 
-def singing(prs, docx_path, occurance, delimiter):
+def singing(prs, docx_path, occurrence, delimiter):
     doc = Document(docx_path)
-    paragraphs = process_paragraphs(doc, "marende", delimiter)
+    paragraphs = process_paragraphs(doc, "marende", occurrence, delimiter)
     font_size_map = {250: 36, 200: 40, 0: 48}
     add_paragraphs_to_slide(prs, paragraphs, font_size_map)
 
 def patik(prs, docx_path):
     doc = Document(docx_path)
-    paragraphs = process_paragraphs(doc, "p a t i k", "marende")
+    collecting = False
+    paragraphs = []
+    paragraphs_between = []
+    paragraph_count = 0
+    delimiter = "marende"
+
+    for paragraph in doc.paragraphs:
+        paragraph_count += 1
+        if "p a t i k".lower() in paragraph.text.lower():
+            collecting = True
+            paragraphs.append("P A T I K")
+            text = paragraph.text[paragraph.text.lower().find("p a t i k".lower()):]
+            text = text.replace("P a t i k :", "").strip()
+            if text:
+                paragraphs.append(text)
+
+            continue
+
+        if collecting:
+            if delimiter in paragraph.text.lower():
+                break
+
+            paragraphs.append(paragraph.text)
+
+    if collecting and paragraphs:
+        paragraphs_between.append("\n".join(paragraphs))
+
     font_size_map = {230: 14, 200: 36, 0: 48}
     add_paragraphs_to_slide(prs, paragraphs, font_size_map)
 
@@ -107,35 +151,79 @@ def generate_cover(prs, docx_path):
 
 def session(prs, docx_path, param):
     doc = Document(docx_path)
+
     found_text = [paragraph.text.strip() for paragraph in doc.paragraphs if param.lower() in paragraph.text.lower()]
-    cleaned_texts = [
-        text.lstrip(''.join(c for c in text if not c.isalpha() and not c.isspace())).rstrip(':').upper()
-        for text in found_text
-    ]
+    cleaned_texts = []
+    for text in found_text:
+        text = text.lstrip(''.join(c for c in text if not c.isalpha() and not c.isspace())).rstrip(':').upper()
+        split_text = text.split(":", 1)
+        if len(split_text) > 1:
+            modified_text = split_text[0] + ":\n" + split_text[1]
+            cleaned_texts.append(modified_text)
+        else:
+            cleaned_texts.append(text)
     font_size_map = {250: 36, 200: 40, 0: 48}
     add_paragraphs_to_slide(prs, cleaned_texts, font_size_map)
 
 def epistel(prs, docx_path):
     doc = Document(docx_path)
-    paragraphs = process_paragraphs(doc, "e p i s t e l", "marende")
+    paragraphs = []  # List to store the final grouped paragraphs
+    current_paragraph = []  # Temporarily stores lines for a single speaker
+    found_epistel = False
+    found_marende = False
+
+    # Process each paragraph in the document
+    for para in doc.paragraphs:
+        text = para.text.strip()  # Clean up extra whitespace
+        if not text:  # Skip empty lines
+            continue
+
+        if "E P I S T E L".lower() in text.lower():
+            found_epistel = True
+            continue
+
+        if found_epistel and "marende".lower() in text.lower():
+            found_marende = True
+            continue
+
+        if found_epistel and not found_marende:
+            # Check if the line starts with "U:" or "H:"
+            if text.startswith("U	:") or text.startswith("H	:") or text.startswith("H :") or text.startswith("U :"):
+                # Save the current paragraph if it exists
+                if current_paragraph:
+                    paragraphs.append("\n".join(current_paragraph))
+                    current_paragraph = []  # Reset for the next speaker
+
+                # Start a new paragraph
+                current_speaker = text[:2]  # Extract the speaker identifier
+                current_paragraph.append(text)
+            else:
+                # Add the line to the current paragraph
+                current_paragraph.append(text)
+
+    # Append the last paragraph if any
+    if current_paragraph:
+        paragraphs.append("\n".join(current_paragraph))
+
     font_size_map = {250: 36, 200: 40, 0: 48}
     add_paragraphs_to_slide(prs, paragraphs, font_size_map)
 
-def convert_with_cover(docx_path, pptx_path):
+
+def convert_with_cover(docx_path, pptx_path, config):
     prs = Presentation()
+
+    # Generate cover slide
     generate_cover(prs, docx_path)
-    singing(prs, docx_path, 1, "votum")
-    session(prs, docx_path, "votum")
-    singing(prs, docx_path, 2, "p a t i k")
-    patik(prs, docx_path)
-    singing(prs, docx_path, 3, "manopoti dosa")
-    session(prs, docx_path, "manopoti dosa")
-    singing(prs, docx_path, 4, "e p i s t e l")
-    session(prs, docx_path, "e p i s t e l")
-    epistel(prs, docx_path)
-    singing(prs, docx_path, 5, "manghatindanghon haporseaon")
-    session(prs, docx_path, "manghatindanghon haporseaon")
-    session(prs, docx_path, "koor")
-    session(prs, docx_path, "tingting")
-    session(prs, docx_path, "sunggul")
+
+    # Loop through the configuration and perform the steps dynamically
+    for step in config['steps']:
+        if step['action'] == 'singing':
+            singing(prs, docx_path, step['number'], step['label'])
+        elif step['action'] == 'session':
+            session(prs, docx_path, step['label'])
+        elif step['action'] == 'epistel':
+            epistel(prs, docx_path)
+        elif step['action'] == 'patik':
+            patik(prs, docx_path)
+
     prs.save(pptx_path)
