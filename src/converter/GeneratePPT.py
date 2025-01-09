@@ -215,7 +215,7 @@ def epistel(prs, docx_path, language):
     if current_paragraph:
         paragraphs.append("\n".join(current_paragraph))
 
-    font_size_map = {250: 36, 200: 40, 0: 48}
+    font_size_map = {250: 36, 150: 40, 0: 44}
     add_paragraphs_to_slide(prs, paragraphs, font_size_map)
 
 
